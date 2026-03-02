@@ -1,0 +1,152 @@
+========================================
+SCHEDULE C RISK SCAN - DEPLOYMENT GUIDE
+========================================
+
+FOLDER STRUCTURE:
+-----------------
+schedule-c-risk-scan/
+├── index.html
+├── netlify.toml
+├── netlify/
+│   └── functions/
+│       ├── submit.js
+│       └── package.json
+└── DEPLOYMENT.txt (this file)
+
+
+STEP 1: DEPLOY TO NETLIFY
+--------------------------
+1. Go to: https://app.netlify.com
+2. Click "Add new site" → "Import an existing project"
+3. Choose "Deploy with GitHub"
+4. Authorize Netlify to access your GitHub
+5. Select repository: "schedule-c-risk-scan"
+6. Click "Deploy site"
+7. Wait for deployment to complete (1-2 minutes)
+8. You'll get a live URL like: https://random-name-123.netlify.app
+
+
+STEP 2: SET ENVIRONMENT VARIABLES
+----------------------------------
+1. In Netlify dashboard, go to: Site settings → Environment variables
+2. Click "Add a variable" and add these 4 variables:
+
+   Variable Name: AIRTABLE_TOKEN
+   Value: [Paste your Airtable Personal Access Token]
+
+   Variable Name: AIRTABLE_BASE_ID
+   Value: [Paste your Base ID, starts with "app..."]
+
+   Variable Name: AIRTABLE_CLIENTS_TABLE
+   Value: Clients
+
+   Variable Name: AIRTABLE_ASSESSMENTS_TABLE
+   Value: Risk Assessments
+
+3. Click "Save"
+4. Go to: Deploys → Trigger deploy → Deploy site
+   (This rebuilds with your environment variables)
+
+
+STEP 3: GET AIRTABLE CREDENTIALS
+---------------------------------
+Personal Access Token:
+1. Go to: https://airtable.com/create/tokens
+2. Click "Create new token"
+3. Name it: "Schedule C Risk Scan"
+4. Add scopes: 
+   - data.records:read
+   - data.records:write
+5. Add access to your base
+6. Copy the token → Paste into AIRTABLE_TOKEN
+
+Base ID:
+1. Go to: https://airtable.com/api
+2. Select your base
+3. Copy the Base ID from the intro section → Paste into AIRTABLE_BASE_ID
+
+
+STEP 4: SET UP AIRTABLE TABLES
+-------------------------------
+Create two tables in your Airtable base:
+
+TABLE 1: "Clients"
+Fields:
+- First Name (Single line text)
+- Last Name (Single line text)  
+- Email (Email) ← Mark as primary field
+- Business Name (Single line text)
+- Business Type (Single select: Schedule C, LLC, S-Corp)
+- Years in Business (Single select: 0-6 months, 6-12 months, 1-2 years, 2+ years)
+
+TABLE 2: "Risk Assessments"
+Fields:
+- Client (Link to Clients table) ← IMPORTANT: Link to Clients
+- First Name (Single line text)
+- Last Name (Single line text)
+- Email (Email)
+- Business Name (Single line text)
+- Business Type (Single line text)
+- Years in Business (Single line text)
+- Raw Score (Number)
+- Max Possible Score (Number)
+- Converted Score (Number)
+- Stage (Single line text)
+- Recommended Route (Long text)
+- Risk Level (Single select: Low Risk, Moderate Risk, High Risk)
+- Assessment Date (Date)
+
+
+STEP 5: TEST YOUR DEPLOYMENT
+-----------------------------
+Test 1 - New Email:
+1. Go to your Netlify URL
+2. Complete the assessment with a NEW email (e.g., test1@example.com)
+3. Submit the form
+4. Check Airtable:
+   ✓ New record should appear in "Clients" table
+   ✓ New record should appear in "Risk Assessments" table
+   ✓ Assessment should be LINKED to the client
+
+Test 2 - Existing Email:
+1. Complete another assessment using THE SAME email (test1@example.com)
+2. Submit the form
+3. Check Airtable:
+   ✓ NO new client created (still only 1 client)
+   ✓ NEW assessment created in "Risk Assessments"
+   ✓ New assessment LINKED to existing client
+
+
+TROUBLESHOOTING:
+----------------
+Problem: "Server configuration error"
+Solution: Check that all 4 environment variables are set correctly in Netlify
+
+Problem: "Failed to create client" or "Failed to create assessment"
+Solution: 
+- Verify table names match exactly: "Clients" and "Risk Assessments"
+- Check that all fields exist in Airtable with correct names
+- Ensure Airtable token has read AND write permissions
+
+Problem: Function doesn't run
+Solution: 
+- Check Netlify Functions log: Site overview → Functions → View logs
+- Verify netlify.toml is in root folder
+- Redeploy: Deploys → Trigger deploy → Clear cache and deploy site
+
+Problem: No data in Airtable
+Solution:
+- Open browser console (F12) and check for errors
+- Verify the function URL works: https://your-site.netlify.app/.netlify/functions/submit
+- Check Netlify Function logs for errors
+
+
+CUSTOM DOMAIN (OPTIONAL):
+--------------------------
+1. Buy domain from GoDaddy, Namecheap, etc.
+2. In Netlify: Domain settings → Add custom domain
+3. Follow Netlify's DNS instructions
+4. Done! Your site will be at your custom domain
+
+
+YOUR SITE IS NOW LIVE! 🎉
