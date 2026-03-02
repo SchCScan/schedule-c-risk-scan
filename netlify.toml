@@ -1,10 +1,5 @@
 [build]
-  command = "echo 'No build needed'"
   publish = "."
 
 [functions]
   directory = "netlify/functions"
-  node_bundler = "esbuild"
-
-[[plugins]]
-  package = "@netlify/plugin-functions-install-core"
