@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schedule C Risk Scan</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; }
+    .lucide { width: 24px; height: 24px; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .animate-spin { animation: spin 1s linear infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const FileText = (props) => (<svg className="lucide" {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>);
+    const Download = (props) => (<svg className="lucide" {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>);
+    const AlertCircle = (props) => (<svg className="lucide" {...props}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>);
+    const CheckCircle = (props) => (<svg className="lucide" {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>);
+    const AlertTriangle = (props) => (<svg className="lucide" {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>);
+    const Loader2 = (props) => (<svg className="lucide animate-spin" {...props}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>);
+
+    const ScheduleCRiskScan = () => {
+      const [currentStep, setCurrentStep] = useState('intro');
+      const [answers, setAnswers] = useState({});
+      const [userInfo, setUserInfo] = useState({ firstName: '', lastName: '', email: '', businessName: '', businessType: '', yearsInBusiness: '' });
+      const [processingMessage, setProcessingMessage] = useState('Analyzing your responses');
+      const [stageData, setStageData] = useState(null);
+
+      const sections = [
+        { id: 'section1', title: 'Business Structure & Documentation', questions: [
+          { id: 'q1', text: 'Do you maintain separate business and personal bank accounts?', weight: 3 },
+          { id: 'q2', text: 'Do you have a written business plan?', weight: 2 },
+          { id: 'q3', text: 'Do you keep detailed records of all business expenses?', weight: 4 },
+          { id: 'q4', text: 'Do you have receipts for all major purchases?', weight: 3 },
+          { id: 'q5', text: 'Do you maintain a mileage log for business travel?', weight: 3 }
+        ]},
+        { id: 'section2', title: 'Income Reporting', questions: [
+          { id: 'q6', text: 'Do you report 100% of business income received?', weight: 5 },
+          { id: 'q7', text: 'Do you receive and maintain all 1099 forms?', weight: 4 },
+          { id: 'q8', text: 'Do you track cash income separately?', weight: 3 },
+          { id: 'q9', text: 'Do you reconcile income records monthly?', weight: 2 },
+          { id: 'q10', text: 'Do you have a point-of-sale or invoicing system?', weight: 2 }
+        ]},
+        { id: 'section3', title: 'Expense Classification', questions: [
+          { id: 'q11', text: 'Do you understand which expenses are deductible?', weight: 3 },
+          { id: 'q12', text: 'Do you separate personal from business expenses?', weight: 4 },
+          { id: 'q13', text: 'Do you claim home office deduction with proper documentation?', weight: 2 },
+          { id: 'q14', text: 'Do you properly classify meals and entertainment expenses?', weight: 2 },
+          { id: 'q15', text: 'Do you track business use percentage for mixed-use assets?', weight: 3 }
+        ]},
+        { id: 'section4', title: 'Professional Practices', questions: [
+          { id: 'q16', text: 'Do you work with a tax professional or accountant?', weight: 3 },
+          { id: 'q17', text: 'Do you make estimated quarterly tax payments?', weight: 3 },
+          { id: 'q18', text: 'Do you review tax returns before filing?', weight: 2 },
+          { id: 'q19', text: 'Do you keep tax records for at least 3 years?', weight: 3 },
+          { id: 'q20', text: 'Do you stay informed about tax law changes?', weight: 2 }
+        ]}
+      ];
+
+      const stageContent = {
+        exposed: { name: 'EXPOSED', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', icon: AlertCircle, emoji: '🟥',
+          description: 'Your business currently has high tax and compliance exposure. Core financial systems are either missing or inconsistent, increasing the risk of penalties, audit stress, and unexpected tax liabilities.',
+          riskPattern: ['Inconsistent or missing income tracking', 'No structured estimated tax process', 'Weak or missing documentation practices', 'Blurred separation between personal and business finances'],
+          whatNext: 'Before focusing on growth, your business must stabilize its foundational compliance systems. Immediate structure and education will significantly reduce risk and increase clarity.',
+          primaryCTA: 'Enroll in IRS Readiness Workshop – $149', primaryLink: '/workshop' },
+        aware: { name: 'AWARE', color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200', icon: AlertTriangle, emoji: '🟧',
+          description: 'You understand your tax obligations and have begun building systems, but inconsistency still creates exposure and unnecessary stress during tax season.',
+          riskPattern: ['Partial estimated tax discipline', 'Inconsistent monthly bookkeeping', 'Documentation gaps', 'Reactive filing behavior instead of proactive planning'],
+          whatNext: 'You need structured implementation and accountability to stabilize your operations and reduce compliance risk permanently. A guided 90-day foundation program will help you build disciplined financial habits.',
+          primaryCTA: 'Join the 90-Day Foundation Cohort', primaryLink: '/foundation-cohort' },
+        stabilizing: { name: 'STABILIZING', color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200', icon: AlertTriangle, emoji: '🟨',
+          description: 'Your financial systems are functioning and risk exposure is reduced. However, refinement and discipline are required to reach full compliance confidence and operational stability.',
+          riskPattern: ['Mostly consistent recordkeeping', 'Estimated payments improving but not optimized', 'Entity and documentation refinement needed', 'Limited strategic tax planning'],
+          whatNext: 'This is the stage where structure turns into strength. Focused refinement and accountability will move you into full compliance protection and long-term financial confidence.',
+          primaryCTA: 'Apply for the 90-Day Accelerator Program', primaryLink: '/accelerator' },
+        protected: { name: 'PROTECTED', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', icon: CheckCircle, emoji: '🟩',
+          description: 'Your compliance foundation is strong. Systems are consistent, documentation is organized, and tax exposure is controlled.',
+          riskPattern: ['Compliance discipline established', 'Strong documentation systems', 'Opportunity for entity optimization', 'Strategic tax planning potential'],
+          whatNext: 'Now the focus shifts from protection to optimization. Strategic advisory and forward planning will help you strengthen profitability and prepare for long-term growth.',
+          primaryCTA: 'Explore Advisory Services', primaryLink: '/advisory' },
+        strategic: { name: 'STRATEGIC', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', icon: CheckCircle, emoji: '🟦',
+          description: 'You are operating with discipline, structure, and forward planning. Your systems support sustainable growth and tax efficiency.',
+          riskPattern: ['Strong compliance discipline', 'Clear financial visibility', 'Profit awareness and optimization', 'Readiness for scaling decisions'],
+          whatNext: 'You are ready for high-level strategic advisory focused on long-term growth, entity optimization, and wealth-building strategy.',
+          primaryCTA: 'Request VIP Strategic Advisory Invitation', primaryLink: '/vip' }
+      };
+
+      const processingMessages = ['Analyzing your responses', 'Evaluating compliance exposure', 'Calculating weighted risk score', 'Generating recommended action plan'];
+
+      useEffect(() => {
+        if (currentStep === 'processing') {
+          let index = 0;
+          const interval = setInterval(() => {
+            index = (index + 1) % processingMessages.length;
+            setProcessingMessage(processingMessages[index]);
+          }, 750);
+          return () => clearInterval(interval);
+        }
+      }, [currentStep]);
+
+      const calculateSectionScore = (section) => section.questions.reduce((total, q) => {
+        const answer = answers[q.id];
+        if (answer === 'na') return total;
+        if (answer === 'yes') return total + q.weight;
+        if (answer === 'partial') return total + Math.floor(q.weight / 2);
+        return total;
+      }, 0);
+
+      const calculateSectionMax = (section) => section.questions.reduce((total, q) => {
+        const answer = answers[q.id];
+        if (answer === 'na') return total;
+        return total + q.weight;
+      }, 0);
+
+      const calculateTotalMax = () => sections.reduce((total, section) => total + calculateSectionMax(section), 0);
+      const calculateTotalScore = () => sections.reduce((total, section) => total + calculateSectionScore(section), 0);
+      const getTotalMax = () => calculateTotalMax();
+      const calculateConvertedScore = () => {
+        const rawScore = calculateTotalScore();
+        const maxScore = getTotalMax();
+        if (maxScore === 0) return 0;
+        return Math.round((rawScore / maxScore) * 100);
+      };
+
+      const getStageFromScore = (convertedScore) => {
+        if (convertedScore >= 90) return 'strategic';
+        if (convertedScore >= 75) return 'protected';
+        if (convertedScore >= 60) return 'stabilizing';
+        if (convertedScore >= 40) return 'aware';
+        return 'exposed';
+      };
+
+      const submitToAirtable = async () => {
+        const rawScore = calculateTotalScore();
+        const maxScore = getTotalMax();
+        const convertedScore = calculateConvertedScore();
+        const stage = getStageFromScore(convertedScore);
+        const stageInfo = stageContent[stage];
+        const payload = { firstName: userInfo.firstName, lastName: userInfo.lastName, email: userInfo.email, businessName: userInfo.businessName, businessType: userInfo.businessType, yearsInBusiness: userInfo.yearsInBusiness, rawScore, maxPossibleScore: maxScore, convertedScore, stage: stageInfo.name, recommendedRoute: stageInfo.primaryCTA, riskLevel: convertedScore >= 75 ? 'Low Risk' : convertedScore >= 40 ? 'Moderate Risk' : 'High Risk' };
+        try {
+          const response = await fetch('/.netlify/functions/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const result = await response.json();
+          if (!response.ok) console.error('Submission error:', result.error);
+          return { convertedScore, stage };
+        } catch (error) {
+          console.error('Airtable submission error:', error);
+          return { convertedScore, stage };
+        }
+      };
+
+      const handleAnswer = (questionId, value) => setAnswers({ ...answers, [questionId]: value });
+
+      const handleProcessing = async () => {
+        setCurrentStep('processing');
+        const startTime = Date.now();
+        const { convertedScore, stage } = await submitToAirtable();
+        const elapsed = Date.now() - startTime;
+        const remainingTime = Math.max(0, 2000 - elapsed);
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+        setStageData({ convertedScore, stage });
+        setCurrentStep('results');
+      };
+
+      const generatePDF = () => {
+        const convertedScore = stageData.convertedScore;
+        const stage = stageContent[stageData.stage];
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 800;
+        canvas.height = 1200;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#1f2937';
+        ctx.font = 'bold 32px Arial';
+        ctx.fillText('SCHEDULE C RISK SCAN RESULTS', 50, 60);
+        ctx.font = '18px Arial';
+        ctx.fillText(`Name: ${userInfo.firstName} ${userInfo.lastName}`, 50, 120);
+        ctx.fillText(`Business: ${userInfo.businessName}`, 50, 150);
+        ctx.fillText(`Email: ${userInfo.email}`, 50, 180);
+        ctx.fillText(`Date: ${new Date().toLocaleDateString()}`, 50, 210);
+        ctx.font = 'bold 28px Arial';
+        ctx.fillText(`COMPLIANCE SCORE: ${convertedScore}/100`, 50, 270);
+        ctx.font = 'bold 24px Arial';
+        ctx.fillText(`STAGE: ${stage.name}`, 50, 310);
+        ctx.font = '16px Arial';
+        let yPos = 360;
+        const maxWidth = 700;
+        const lineHeight = 24;
+        const words = stage.description.split(' ');
+        let line = '';
+        words.forEach(word => {
+          const testLine = line + word + ' ';
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > maxWidth) {
+            ctx.fillText(line, 50, yPos);
+            line = word + ' ';
+            yPos += lineHeight;
+          } else {
+            line = testLine;
+          }
+        });
+        ctx.fillText(line, 50, yPos);
+        yPos += 50;
+        ctx.font = 'bold 18px Arial';
+        ctx.fillText('RECOMMENDED NEXT STEP:', 50, yPos);
+        yPos += 30;
+        ctx.font = '16px Arial';
+        ctx.fillText(stage.primaryCTA, 50, yPos);
+        canvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `Schedule-C-Assessment-${userInfo.lastName}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        });
+      };
+
+      if (currentStep === 'intro') {
+        return (
+          <div className="min-h-screen bg-gray-50 py-12 px-4">
+            <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-8">
+              <div className="text-center mb-8">
+                <FileText className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Schedule C Risk Scan</h1>
+                <p className="text-gray-600">Assess your tax compliance risk level</p>
+              </div>
+              <div className="space-y-4 mb-8">
+                <p className="text-gray-700">This assessment evaluates your Schedule C tax filing practices across four critical areas:</p>
+                <ul className="list-disc list-inside space-y-2 text-gray-700 ml-4">
+                  <li>Business Structure & Documentation</li>
+                  <li>Income Reporting</li>
+                  <li>Expense Classification</li>
+                  <li>Professional Practices</li>
+                </ul>
+                <p className="text-gray-700">Answer 20 questions to receive your compliance score and personalized action plan.</p>
+              </div>
+              <button onClick={() => setCurrentStep('section1')} className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition">Start Assessment</button>
+            </div>
+          </div>
+        );
+      }
+
+      if (currentStep.startsWith('section')) {
+        const sectionIndex = parseInt(currentStep.replace('section', '')) - 1;
+        const section = sections[sectionIndex];
+        const sectionScore = calculateSectionScore(section);
+        const maxSectionScore = calculateSectionMax(section);
+        return (
+          <div className="min-h-screen bg-gray-50 py-12 px-4">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white rounded-lg shadow-lg p-8">
+                <div className="mb-6">
+                  <div className="flex justify-between items-center mb-2">
+                    <h2 className="text-2xl font-bold text-gray-900">{section.title}</h2>
+                    <span className="text-sm text-gray-500">Section {sectionIndex + 1} of 4</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm text-gray-600">Section Score: {sectionScore} / {maxSectionScore}</div>
+                    <div className="text-sm text-gray-600">Total Score: {calculateTotalScore()} / {getTotalMax()}</div>
+                  </div>
+                </div>
+                <div className="space-y-6">
+                  {section.questions.map((question, idx) => (
+                    <div key={question.id} className="border-b pb-6 last:border-b-0">
+                      <p className="text-gray-800 font-medium mb-3">{idx + 1}. {question.text} <span className="text-sm text-gray-500 ml-2">({question.weight} pts)</span></p>
+                      <div className="flex gap-4">
+                        <button onClick={() => handleAnswer(question.id, 'yes')} className={`flex-1 py-2 px-4 rounded-lg border-2 transition ${answers[question.id] === 'yes' ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 hover:border-green-300'}`}>Yes</button>
+                        <button onClick={() => handleAnswer(question.id, 'partial')} className={`flex-1 py-2 px-4 rounded-lg border-2 transition ${answers[question.id] === 'partial' ? 'border-yellow-500 bg-yellow-50 text-yellow-700' : 'border-gray-200 hover:border-yellow-300'}`}>Partial</button>
+                        <button onClick={() => handleAnswer(question.id, 'no')} className={`flex-1 py-2 px-4 rounded-lg border-2 transition ${answers[question.id] === 'no' ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-200 hover:border-red-300'}`}>No</button>
+                        <button onClick={() => handleAnswer(question.id, 'na')} className={`flex-1 py-2 px-4 rounded-lg border-2 transition ${answers[question.id] === 'na' ? 'border-gray-500 bg-gray-100 text-gray-700' : 'border-gray-200 hover:border-gray-400'}`}>N/A</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between mt-8">
+                  <button onClick={() => { if (sectionIndex > 0) { setCurrentStep(`section${sectionIndex}`); } else { setCurrentStep('intro'); } }} className="px-6 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition">Back</button>
+                  <button onClick={() => { if (sectionIndex < sections.length - 1) { setCurrentStep(`section${sectionIndex + 2}`); } else { setCurrentStep('contact'); } }} disabled={!section.questions.every(q => answers[q.id])} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed">{sectionIndex < sections.length - 1 ? 'Next Section' : 'Continue'}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (currentStep === 'contact') {
+        return (
+          <div className="min-h-screen bg-gray-50 py-12 px-4">
+            <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Receive Your Personalized Compliance Score & Action Plan</h2>
+              <p className="text-gray-600 mb-6">To generate your detailed compliance evaluation and recommended next steps, please confirm your business information below. Your information is kept confidential and used solely to deliver your assessment results.</p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label><input type="text" value={userInfo.firstName} onChange={(e) => setUserInfo({ ...userInfo, firstName: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="John" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-2">Last Name *</label><input type="text" value={userInfo.lastName} onChange={(e) => setUserInfo({ ...userInfo, lastName: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Doe" /></div>
+                </div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-2">Email Address *</label><input type="email" value={userInfo.email} onChange={(e) => setUserInfo({ ...userInfo, email: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="john@example.com" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-2">Business Name *</label><input type="text" value={userInfo.businessName} onChange={(e) => setUserInfo({ ...userInfo, businessName: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="ABC Consulting" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-2">Business Type *</label><select value={userInfo.businessType} onChange={(e) => setUserInfo({ ...userInfo, businessType: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"><option value="">Select business type</option><option value="Schedule C">Schedule C</option><option value="LLC">LLC</option><option value="S-Corp">S-Corp</option></select></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-2">Years in Business *</label><select value={userInfo.yearsInBusiness} onChange={(e) => setUserInfo({ ...userInfo, yearsInBusiness: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"><option value="">Select years in business</option><option value="0-6 months">0–6 months</option><option value="6-12 months">6–12 months</option><option value="1-2 years">1–2 years</option><option value="2+ years">2+ years</option></select></div>
+              </div>
+              <div className="flex justify-between mt-8">
+                <button onClick={() => setCurrentStep('section4')} className="px-6 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition">Back</button>
+                <button onClick={handleProcessing} disabled={!userInfo.firstName || !userInfo.lastName || !userInfo.email || !userInfo.businessName || !userInfo.businessType || !userInfo.yearsInBusiness} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed">Generate My Compliance Score</button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (currentStep === 'processing') {
+        return (
+          <div className="fixed inset-0 bg-gray-900 bg-opacity-95 flex items-center justify-center z-50">
+            <div className="text-center">
+              <Loader2 className="w-16 h-16 text-blue-500 mx-auto mb-6" style={{width: '64px', height: '64px'}} />
+              <h2 className="text-3xl font-bold text-white mb-4">Processing Your Compliance Score...</h2>
+              <p className="text-xl text-gray-300 animate-pulse">{processingMessage}</p>
+            </div>
+          </div>
+        );
+      }
+
+      if (currentStep === 'results' && stageData) {
+        const stage = stageContent[stageData.stage];
+        const StageIcon = stage.icon;
+        return (
+          <div className="min-h-screen bg-gray-50 py-12 px-4">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white rounded-lg shadow-lg p-8">
+                <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Your Compliance Assessment Results</h2>
+                <div className={`${stage.bg} border-2 ${stage.border} rounded-lg p-8 mb-8`}>
+                  <div className="flex items-center justify-center mb-4">
+                    <StageIcon className={`${stage.color}`} style={{width: '64px', height: '64px'}} />
+                  </div>
+                  <div className="text-center mb-6">
+                    <div className="text-6xl font-bold text-gray-900 mb-2">{stageData.convertedScore}</div>
+                    <div className="text-xl text-gray-600 mb-4">Compliance Score (out of 100)</div>
+                    <div className={`text-3xl font-bold ${stage.color} flex items-center justify-center gap-2`}><span>{stage.emoji}</span><span>STAGE: {stage.name}</span></div>
+                  </div>
+                  <div className="space-y-6 text-left">
+                    <div><h3 className="font-bold text-gray-900 text-lg mb-2">Stage Description</h3><p className="text-gray-700">{stage.description}</p></div>
+                    <div><h3 className="font-bold text-gray-900 text-lg mb-2">Risk Pattern Summary</h3><ul className="list-disc list-inside space-y-1 text-gray-700">{stage.riskPattern.map((item, idx) => (<li key={idx}>{item}</li>))}</ul></div>
+                    <div><h3 className="font-bold text-gray-900 text-lg mb-2">What Must Happen Next</h3><p className="text-gray-700">{stage.whatNext}</p></div>
+                  </div>
+                </div>
+                <div className="space-y-4 mb-8">
+                  <a href={stage.primaryLink} className={`block w-full ${stage.color.replace('text', 'bg')} text-white py-4 rounded-lg font-bold text-center hover:opacity-90 transition text-lg`}>{stage.primaryCTA}</a>
+                  <a href="/schedule-review" className="block w-full bg-gray-700 text-white py-4 rounded-lg font-semibold text-center hover:bg-gray-800 transition">Schedule a 15-Minute Compliance Review</a>
+                </div>
+                <div className="border-t pt-6">
+                  <button onClick={generatePDF} className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"><Download style={{width: '20px', height: '20px'}} />Download Results Summary</button>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mt-6">
+                  <h4 className="font-semibold text-gray-900 mb-2">Disclaimer</h4>
+                  <p className="text-sm text-gray-600">This risk assessment is for informational purposes only and does not constitute tax, legal, or financial advice. Results are based on self-reported responses and should not be relied upon as a comprehensive audit or compliance review. Consult with a qualified tax professional for specific guidance regarding your Schedule C filing.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      return null;
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<ScheduleCRiskScan />);
+  </script>
+</body>
+</html>
